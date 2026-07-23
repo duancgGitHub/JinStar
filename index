@@ -1,0 +1,1644 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI引擎重构企业增长 - 北锦星辰</title>
+    <style>
+        :root {
+            --primary: #FF6B00;
+            --primary-light: #FFF4EC;
+            --primary-hover: #E05E00;
+            --dark: #111827;
+            --gray-dark: #374151;
+            --gray-light: #6B7280;
+            --bg-light: #F9FAFB;
+            --border: #E5E7EB;
+            --white: #FFFFFF;
+
+            --stage1-color: #2563EB;
+            --stage1-bg: #EFF6FF;
+            --stage2-color: #059669;
+            --stage2-bg: #ECFDF5;
+            --stage3-color: #7C3AED;
+            --stage3-bg: #F5F3FF;
+            --stage4-color: #DB2777;
+            --stage4-bg: #FDF2F8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+        }
+
+        body {
+            background-color: #1E293B;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .presentation-container {
+            width: 1280px;
+            height: 720px;
+            background: var(--white);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 顶部幻灯片进度条 */
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: var(--primary);
+            transition: width 0.3s ease;
+            z-index: 101;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 28px 48px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background: var(--white);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Header */
+        .slide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--primary-light);
+            padding-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-logo {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .brand-logo::before {
+            content: "";
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: var(--primary);
+            border-radius: 50%;
+        }
+
+        .chapter-tag {
+            font-size: 13px;
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            border: 1px solid rgba(255, 107, 0, 0.2);
+        }
+
+        /* 正文区域 */
+        .slide-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 12px 0;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        /* Footer */
+        .slide-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+            font-size: 12px;
+            color: var(--gray-light);
+            flex-shrink: 0;
+        }
+
+        .slide-number {
+            font-weight: 700;
+            color: var(--primary);
+            background: var(--primary-light);
+            padding: 3px 10px;
+            border-radius: 6px;
+        }
+
+        /* Typography */
+        h1.title {
+            font-size: 48px;
+            font-weight: 900;
+            color: var(--dark);
+            line-height: 1.15;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        h2.section-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2.section-title::before {
+            content: "";
+            display: inline-block;
+            width: 6px;
+            height: 22px;
+            background: var(--primary);
+            border-radius: 3px;
+        }
+
+        .subtitle {
+            font-size: 13px;
+            color: var(--gray-dark);
+            line-height: 1.5;
+        }
+
+        .quote-box {
+            background: var(--primary-light);
+            border-left: 4px solid var(--primary);
+            padding: 12px 18px;
+            border-radius: 0 8px 8px 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--dark);
+            line-height: 1.5;
+        }
+
+        /* Layout Grids */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+        .card {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            transition: all 0.2s ease;
+        }
+
+        .card.active {
+            border-color: rgba(255, 107, 0, 0.4);
+            background: var(--white);
+            box-shadow: 0 4px 12px rgba(255, 107, 0, 0.08);
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--primary);
+            color: white;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .list-items {
+            list-style: none;
+        }
+
+        .list-items li {
+            font-size: 13px;
+            color: var(--gray-dark);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            line-height: 1.5;
+        }
+
+        .list-items li::before {
+            content: "✔";
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 12px;
+            margin-top: 1px;
+        }
+
+        /* JBF 框架优化样式 */
+        .jbf-container {
+            display: grid;
+            grid-template-columns: 1fr 28px 1fr 28px 1fr;
+            align-items: stretch;
+            gap: 0;
+            margin: 10px 0 6px 0;
+            flex: 1;
+        }
+
+        .jbf-card {
+            background: var(--white);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+            position: relative;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .jbf-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.08);
+        }
+
+        .jbf-step-tag {
+            align-self: flex-start;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .jbf-card.why { border-top: 6px solid #FF6B00; }
+        .jbf-card.why .jbf-step-tag { background: #FFF4EC; color: #FF6B00; border: 1px solid #FFD5B8; }
+
+        .jbf-card.how { border-top: 6px solid #2563EB; }
+        .jbf-card.how .jbf-step-tag { background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; }
+
+        .jbf-card.what { border-top: 6px solid #059669; }
+        .jbf-card.what .jbf-step-tag { background: #ECFDF5; color: #059669; border: 1px solid #A7F3D0; }
+
+        .jbf-title {
+            font-size: 26px;
+            font-weight: 900;
+            color: var(--dark);
+            margin-bottom: 2px;
+        }
+
+        .jbf-subtitle {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--gray-light);
+            margin-bottom: 16px;
+        }
+
+        .jbf-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .jbf-list li {
+            font-size: 13px;
+            color: var(--gray-dark);
+            line-height: 1.5;
+            background: var(--bg-light);
+            padding: 10px 12px;
+            border-radius: 8px;
+            border-left: 4px solid var(--border);
+        }
+
+        .jbf-card.why .jbf-list li { border-left-color: #FF6B00; }
+        .jbf-card.how .jbf-list li { border-left-color: #2563EB; }
+        .jbf-card.what .jbf-list li { border-left-color: #059669; }
+
+        .jbf-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-light);
+            font-size: 22px;
+            font-weight: 900;
+            opacity: 0.35;
+        }
+
+        .originality-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #FFF4EC;
+            border: 1px solid #FFD5B8;
+            color: #FF6B00;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        /* 阶梯式演进模型 */
+        .stepper-layout {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            height: 420px;
+            width: 100%;
+            margin-top: 6px;
+        }
+
+        .step-stair {
+            flex: 1;
+            border-radius: 10px;
+            padding: 14px 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .step-stair:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .step-header {
+            border-bottom: 1px solid rgba(0,0,0,0.08);
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+        }
+
+        .step-lvl {
+            font-size: 18px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .step-title-name {
+            font-size: 13px;
+            font-weight: 800;
+            margin-top: 2px;
+        }
+
+        .step-block {
+            margin-bottom: 6px;
+        }
+
+        .step-tag-text {
+            font-size: 11px;
+            font-weight: 800;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .step-body-text {
+            font-size: 11px;
+            line-height: 1.4;
+            font-weight: 400;
+        }
+
+        .stair-l1 { height: 46%; background-color: #fff2eb; color: #4a2c1d; }
+        .stair-l2 { height: 60%; background-color: #ffe0d1; color: #3d2010; }
+        .stair-l3 { height: 74%; background-color: #ffc4a8; color: #2b1305; }
+        .stair-l4 { height: 88%; background-color: #ff8e53; color: #ffffff; }
+        .stair-l4 .step-header { border-bottom-color: rgba(255,255,255,0.25); }
+
+        .stair-l5 {
+            height: 100%;
+            background-color: #FF6B00;
+            color: #ffffff;
+            box-shadow: 0 10px 24px rgba(255, 107, 0, 0.3);
+        }
+        .stair-l5 .step-header { border-bottom-color: rgba(255,255,255,0.3); }
+
+        /* 投资框架 */
+        .invest-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            height: 420px;
+        }
+
+        .invest-card {
+            background: var(--white);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .invest-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+
+        .invest-header {
+            padding: 12px 12px;
+            color: var(--white);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .invest-header .invest-num {
+            font-size: 20px;
+            font-weight: 900;
+            opacity: 0.9;
+            line-height: 1;
+        }
+
+        .invest-header .invest-title {
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .invest-header .invest-sub {
+            font-size: 10px;
+            opacity: 0.8;
+            font-weight: 500;
+        }
+
+        .invest-content {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            flex: 1;
+            gap: 8px;
+        }
+
+        .invest-sec-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .invest-desc {
+            font-size: 11px;
+            color: var(--gray-dark);
+            line-height: 1.4;
+            background: var(--bg-light);
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+
+        .invest-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .invest-list li {
+            font-size: 11px;
+            color: var(--dark);
+            line-height: 1.35;
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .invest-list li::before {
+            content: "•";
+            font-weight: bold;
+        }
+
+        .invest-price-pill {
+            text-align: center;
+            padding: 8px 4px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .stage-1 .invest-header { background: linear-gradient(135deg, #3B82F6, #1D4ED8); }
+        .stage-1 .invest-sec-title { color: #1D4ED8; }
+        .stage-1 .invest-list li::before { color: #1D4ED8; }
+        .stage-1 .invest-price-pill { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+
+        .stage-2 .invest-header { background: linear-gradient(135deg, #10B981, #047857); }
+        .stage-2 .invest-sec-title { color: #047857; }
+        .stage-2 .invest-list li::before { color: #047857; }
+        .stage-2 .invest-price-pill { background: #ECFDF5; color: #047857; border: 1px solid #A7F3D0; }
+
+        .stage-3 .invest-header { background: linear-gradient(135deg, #8B5CF6, #6D28D9); }
+        .stage-3 .invest-sec-title { color: #6D28D9; }
+        .stage-3 .invest-list li::before { color: #6D28D9; }
+        .stage-3 .invest-price-pill { background: #F5F3FF; color: #6D28D9; border: 1px solid #DDD6FE; }
+
+        .stage-4 .invest-header { background: linear-gradient(135deg, #EC4899, #BE185D); }
+        .stage-4 .invest-sec-title { color: #BE185D; }
+        .stage-4 .invest-list li::before { color: #BE185D; }
+        .stage-4 .invest-price-pill { background: #FDF2F8; color: #BE185D; border: 1px solid #FBCFE8; }
+
+        /* 封面与封底 */
+        .cover-slide {
+            background: linear-gradient(135deg, #FFF4EC 0%, #FFFFFF 50%, #FFF9F5 100%);
+        }
+
+        .ending-slide {
+            background: linear-gradient(135deg, #FFF9F5 0%, #FFFFFF 40%, #FFF4EC 100%);
+        }
+
+        .cover-badge {
+            display: inline-block;
+            background: var(--white);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 6px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 800;
+            box-shadow: 0 2px 8px rgba(255,107,0,0.1);
+        }
+
+        .geo-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .liuli-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 100%;
+        }
+
+        .liuli-item {
+            background: var(--bg-light);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+            padding: 12px 14px;
+            border-radius: 0 8px 8px 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--dark);
+        }
+    </style>
+</head>
+<body>
+
+<div class="presentation-container">
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- P1 封面 -->
+    <div class="slide cover-slide active">
+        <div class="slide-header" style="border:none;">
+            <div class="brand-logo">北锦星辰</div>
+        </div>
+        <div class="slide-body" style="justify-content: center;">
+            <div style="margin-bottom: 20px;">
+                <div class="cover-badge">企业 AI 原生增长战略方案</div>
+            </div>
+            <h1 class="title">AI 引擎重构企业增长</h1>
+            <p style="font-size: 22px; color: var(--primary); font-weight: 800; margin-bottom: 20px;">
+                开启 AI 原生增长战略进化之路
+            </p>
+            <p style="font-size: 14px; color: var(--gray-dark); max-width: 760px; line-height: 1.7; background: rgba(255,255,255,0.85); padding: 16px 20px; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+                面向企业最高决策层的战略落地指南：突破传统增量瓶颈，以“六力模型”与“四阶段投资框架”为支撑，建立长期可复利的企业级数字资产与自动增长体系。
+            </p>
+        </div>
+        <div class="slide-footer">
+            <span>战略落地指南</span>
+            <span>北锦星辰（北京）科技有限公司 © 2026 保留所有权利</span>
+        </div>
+    </div>
+
+    <!-- P2 商业环境变局 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第一章 时代已经改变</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">企业增长，正在进入新的竞争阶段</h2>
+            <p class="subtitle">传统靠“买流量、堆人力、拼投放”的粗放型增长模式全面失灵，企业普遍遭遇五大结构性困境：</p>
+            <div class="grid-2">
+                <div class="card active">
+                    <div class="card-title"><span class="card-icon">!</span> 5 大结构性增长瓶颈</div>
+                    <ul class="list-items">
+                        <li><b>获客成本激增：</b>公域获客单价（CAC）持续飙升，ROI临近损益平衡点。</li>
+                        <li><b>流量红利耗尽：</b>平台流量见顶，转化率严重下滑，用户黏性难以维持。</li>
+                        <li><b>内容产能瓶颈：</b>人工创作周期长、成本高，无法满足全网矩阵爆发需求。</li>
+                        <li><b>人效边际递减：</b>运营与销售团队规模膨胀，综合管理与用工成本高企。</li>
+                        <li><b>品牌信任断层：</b>信息泛滥时代，缺乏系统化的AI高权威度品牌资产沉淀。</li>
+                    </ul>
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+                    <div class="card" style="background: var(--primary-light); border-color: var(--primary); flex: 1;">
+                        <div class="card-title" style="color: var(--primary);">核心洞察</div>
+                        <p style="font-size: 14px; color: var(--dark); line-height: 1.6; margin-top: 6px;">
+                            市场并未缩减，而是<b>流量分配机制与用户决策路径发生了根本改变</b>。继续在旧模式上叠加人力，只会加速利润侵蚀。
+                        </p>
+                    </div>
+                    <div class="quote-box">
+                        结论：企业真正面临的不是市场不行，而是传统的增长引擎已经失效。
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">02 / 21</span>
+        </div>
+    </div>
+
+    <!-- P3 竞争逻辑迭代 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第一章 时代已经改变</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">企业竞争逻辑的三次重大迭代</h2>
+            <p class="subtitle">掌握新一轮底层设施的企业，将对旧竞争模式形成代际级的降维打击：</p>
+            <div class="grid-3">
+                <div class="card">
+                    <div class="card-icon" style="background:#9CA3AF; margin-bottom: 12px;">1</div>
+                    <div class="card-title">过去：产品竞争</div>
+                    <p style="font-size: 13px; color: var(--gray-dark); line-height: 1.6; margin-top: 8px;">
+                        <b>核心驱动：</b>产能与质量<br>
+                        拼制造工艺、供应链与基础性价比，依靠产品本身赢得市场。
+                    </p>
+                </div>
+                <div class="card">
+                    <div class="card-icon" style="background:#6B7280; margin-bottom: 12px;">2</div>
+                    <div class="card-title">互联网时代：流量竞争</div>
+                    <p style="font-size: 13px; color: var(--gray-dark); line-height: 1.6; margin-top: 8px;">
+                        <b>核心驱动：</b>渠道与曝光<br>
+                        拼广告投放、SEO与买量逻辑，占据流量分发口即可实现变现。
+                    </p>
+                </div>
+                <div class="card active" style="background: var(--primary-light); border-color: var(--primary);">
+                    <div class="card-icon" style="margin-bottom: 12px;">3</div>
+                    <div class="card-title" style="color: var(--primary);">AI时代：原生增长竞争</div>
+                    <p style="font-size: 13px; color: var(--dark); line-height: 1.6; margin-top: 8px;">
+                        <b>核心驱动：</b>智能化与数字资产<br>
+                        拼人效杠杆、AI搜索推荐权重与智能响应速度，建立智能化赋能闭环。
+                    </p>
+                </div>
+            </div>
+            <div class="quote-box" style="text-align: center; margin-top: 8px;">
+                未来最大的竞争，不是谁资金更多，而是谁率先建立企业级 AI 增长基础设施。
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">03 / 21</span>
+        </div>
+    </div>
+
+    <!-- P4 布局AI的迫切性 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第一章 时代已经改变</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">为什么企业必须立刻重构 AI 引擎？</h2>
+            <p class="subtitle">AI 已经在商业全链条的三大核心体验环节完成了底层重塑：</p>
+            <div class="grid-3">
+                <div class="card active">
+                    <div style="font-size: 26px; color: var(--primary); font-weight: 900; margin-bottom: 4px;">01</div>
+                    <div class="card-title">重构信息获取模式</div>
+                    <p style="color: var(--gray-dark); font-size: 13px; line-height: 1.6;">
+                        客户不再单向使用搜索引擎，DeepSeek、Kimi、豆包等AI成为主流对话式信息入口。
+                    </p>
+                </div>
+                <div class="card active">
+                    <div style="font-size: 26px; color: var(--primary); font-weight: 900; margin-bottom: 4px;">02</div>
+                    <div class="card-title">重构消费决策路径</div>
+                    <p style="color: var(--gray-dark); font-size: 13px; line-height: 1.6;">
+                        客户从“被动看广告”转向“看 AI 大模型的深度推荐”。GEO优化决定了品牌的推荐顺位。
+                    </p>
+                </div>
+                <div class="card active">
+                    <div style="font-size: 26px; color: var(--primary); font-weight: 900; margin-bottom: 4px;">03</div>
+                    <div class="card-title">重构组织生产效率</div>
+                    <p style="color: var(--gray-dark); font-size: 13px; line-height: 1.6;">
+                        从“依托人工经验的低效产出”全面升级为“AI工作流与数字员工协同”，实现人效指数级提升。
+                    </p>
+                </div>
+            </div>
+            <div style="background: var(--primary); color: white; padding: 14px; border-radius: 8px; text-align: center; margin-top: 6px; font-size: 16px; font-weight: 800; box-shadow: 0 4px 12px rgba(255,107,0,0.2);">
+                结论：开启 AI 原生增长，是未来企业最核心的战略壁垒。
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">04 / 21</span>
+        </div>
+    </div>
+
+    <!-- P5 避开工具误区 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第二章 企业真正需要什么？</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">企业真正需要的不是 AI 工具</h2>
+            <p class="subtitle">摆脱工具堆叠陷阱，将“零散尝试”上升为系统化的“战略级建设”：</p>
+            <div class="grid-2">
+                <div class="card" style="background: #FEF2F2; border-color: #FCA5A5;">
+                    <div class="card-title" style="color: #DC2626;">❌ 常见误区：单点采购与试错</div>
+                    <ul class="list-items" style="margin-top: 8px;">
+                        <li style="text-decoration: line-through; color: #7F1D1D;">仅购买 ChatGPT / DeepSeek 账号分配给员工</li>
+                        <li style="text-decoration: line-through; color: #7F1D1D;">缺乏业务 SOP 闭环，单点生成无标准的低质内容</li>
+                        <li style="text-decoration: line-through; color: #7F1D1D;">盲目上线无企业私有知识库支撑的数字人或机器人</li>
+                    </ul>
+                    <div style="background: #FEE2E2; padding: 10px; border-radius: 6px; font-size: 12px; color: #991B1B; margin-top: 12px; font-weight: 700;">
+                        后果：无法沉淀资产，无法建立流程，试错成本高且无法量化 ROI。
+                    </div>
+                </div>
+                <div class="card active" style="background: var(--primary-light); border-color: var(--primary);">
+                    <div class="card-title" style="color: var(--primary);">✔ 核心需求：AI 原生增长体系</div>
+                    <p style="font-size: 15px; font-weight: 800; color: var(--dark); margin: 6px 0 10px 0;">构建长期可复利的数字增长资产</p>
+                    <ul class="list-items">
+                        <li>顶层战略规划与业务增长路线图精确匹配</li>
+                        <li>企业专属知识库与数字人 IP 的安全沉淀</li>
+                        <li>覆盖营销、获客、服务到组织进化的全流程增长引擎</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">05 / 21</span>
+        </div>
+    </div>
+
+    <!-- P6 JBF 增长框架 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第二章 企业真正需要什么？</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <div>
+                <div class="originality-badge">💡 北锦星辰独家研发知识产权</div>
+                <h2 class="section-title">JBF 企业 AI 增长框架</h2>
+            </div>
+            <p class="subtitle">基于百余家企业落地经验独家提炼的 JBF（JinStar AI Growth Framework）重构闭环：</p>
+
+            <div class="jbf-container">
+                <!-- 步骤 1: WHY -->
+                <div class="jbf-card why">
+                    <div>
+                        <div class="jbf-step-tag">STAGE 01 · 战略与定位</div>
+                        <div class="jbf-title">WHY</div>
+                        <div class="jbf-subtitle">企业为什么做 AI？</div>
+                    </div>
+                    <ul class="jbf-list">
+                        <li><b>诊断增长堵点：</b>梳理传统营销与高成本流程瓶颈</li>
+                        <li><b>顶层决策共识：</b>统一高管层思想与 AI 进化路线图</li>
+                        <li><b>明确 ROI 目标：</b>规划阶段性投入回报率与收回周期</li>
+                        <li><b>厘清切入痛点：</b>优先解决高价值获客与高重复性场景</li>
+                    </ul>
+                </div>
+
+                <div class="jbf-arrow">➔</div>
+
+                <!-- 步骤 2: HOW -->
+                <div class="jbf-card how">
+                    <div>
+                        <div class="jbf-step-tag">STAGE 02 · 路径与执行</div>
+                        <div class="jbf-title">HOW</div>
+                        <div class="jbf-subtitle">企业如何做 AI？</div>
+                    </div>
+                    <ul class="jbf-list">
+                        <li><b>依托六力模型：</b>搭建全维度 AI 原生能力系统架构</li>
+                        <li><b>沉淀私有资产：</b>建立企业知识库与创始人数字人 IP</li>
+                        <li><b>GEO 占位推荐：</b>实现 AI 搜索引擎（DeepSeek等）优先推荐</li>
+                        <li><b>构建内容流水线：</b>工业化批量生成高转化矩阵内容</li>
+                    </ul>
+                </div>
+
+                <div class="jbf-arrow">➔</div>
+
+                <!-- 步骤 3: WHAT -->
+                <div class="jbf-card what">
+                    <div>
+                        <div class="jbf-step-tag">STAGE 03 · 交付与复利</div>
+                        <div class="jbf-title">WHAT</div>
+                        <div class="jbf-subtitle">企业最终获得什么？</div>
+                    </div>
+                    <ul class="jbf-list">
+                        <li><b>获客流水线：</b>构建 7×24h 自动化线索流转与承接</li>
+                        <li><b>高人效工作流：</b>赋能全员 AI 工具操作与 SOP 协同</li>
+                        <li><b>长期数字资产：</b>形成高壁垒、可持续复利的企业资产</li>
+                        <li><b>新增长曲线：</b>突破增长上限，建立现代化竞争优势</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="quote-box" style="text-align: center; font-size: 13px; padding: 12px 16px; margin-top: 2px;">
+                💡 贯穿“战略诊断 ➔ 资产建设 ➔ 自动化运营 ➔ 组织进化”的全链路系统化落地体系
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">06 / 21</span>
+        </div>
+    </div>
+
+    <!-- P7 北锦星辰定位 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第二章 企业真正需要什么？</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">北锦星辰：企业 AI 增长战略伙伴</h2>
+            <div class="quote-box" style="margin-bottom: 6px; font-size: 14px;">
+                定位：专注于帮助企业构建 AI 原生增长能力的专业战略服务机构。
+            </div>
+            <p class="subtitle">我们拒绝空洞概念，通过“战略 + 资产 + 交付”三位一体的方式帮助企业打通四大增量：</p>
+            <div class="grid-4">
+                <div class="card active">
+                    <div class="card-icon" style="margin-bottom: 10px;">1</div>
+                    <div class="card-title">建立增长能力</div>
+                    <p style="font-size: 12px; color: var(--gray-dark); line-height: 1.5;">打破传统营销壁垒，将AI全面嵌入业务核心流程。</p>
+                </div>
+                <div class="card active">
+                    <div class="card-icon" style="margin-bottom: 10px;">2</div>
+                    <div class="card-title">提升经营效率</div>
+                    <p style="font-size: 12px; color: var(--gray-dark); line-height: 1.5;">用智能工作流替换重复劳动，大幅降低运营与用工成本。</p>
+                </div>
+                <div class="card active">
+                    <div class="card-icon" style="margin-bottom: 10px;">3</div>
+                    <div class="card-title">构建数字资产</div>
+                    <p style="font-size: 12px; color: var(--gray-dark); line-height: 1.5;">把企业知识、创始人IP与AI搜索占比转变为长期复利资产。</p>
+                </div>
+                <div class="card active">
+                    <div class="card-icon" style="margin-bottom: 10px;">4</div>
+                    <div class="card-title">实现持续获客</div>
+                    <p style="font-size: 12px; color: var(--gray-dark); line-height: 1.5;">搭建自动化内容与AI搜索流转线，获取稳定精准增量。</p>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">07 / 21</span>
+        </div>
+    </div>
+
+    <!-- P8 六力模型 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第三章 企业AI增长能力模型</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <div>
+                <div class="originality-badge">🔒 北锦星辰原创版权框架</div>
+                <h2 class="section-title">企业 AI 增长六力模型</h2>
+            </div>
+            <p class="subtitle">由北锦星辰自主研发的原创增长模型，为企业构建AI时代不可被剥夺的全维能力防护网：</p>
+            <div class="liuli-grid" style="margin: 12px 0;">
+                <div class="liuli-item"><span style="color:var(--primary); font-weight:800;">① 战略引领力：</span>AI顶层路线规划</div>
+                <div class="liuli-item"><span style="color:var(--primary); font-weight:800;">② 品牌资产力：</span>私有知识库与数字IP</div>
+                <div class="liuli-item"><span style="color:var(--primary); font-weight:800;">③ 内容生产力：</span>AI矩阵与短视频</div>
+                <div class="liuli-item"><span style="color:var(--primary); font-weight:800;">④ AI搜索可见力：</span>GEO智能推荐占位</div>
+                <div class="liuli-item"><span style="color:var(--primary); font-weight:800;">⑤ 增长运营力：</span>长效转化与自动化获客</div>
+                <div class="liuli-item"><span style="color:var(--primary); font-weight:800;">⑥ 组织进化力：</span>SOP工作流与人才重构</div>
+            </div>
+            <div class="card active" style="background: var(--primary-light); text-align: center; padding: 18px;">
+                <p style="font-size: 14px; font-weight: 800; color: var(--dark); line-height: 1.6;">
+                    核心说明：JBF 增长框架与 AI 增长六力模型均为北锦星辰独家研发的原创落地体系。<br>
+                    两者协同互补，从“战略路径”与“能力架构”双轮驱动，帮助企业构建现代化数字竞争壁垒。
+                </p>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">08 / 21</span>
+        </div>
+    </div>
+
+    <!-- P9 成熟度进化模型 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第三章 企业AI增长能力模型</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">企业 AI 成熟度进化模型</h2>
+            <p class="subtitle">对照企业当前认知与实际执行情况，定点匹配最适宜的阶梯式升级路线：</p>
+            
+            <div class="stepper-layout">
+                <div class="step-stair stair-l1">
+                    <div class="step-header">
+                        <div class="step-lvl">L1</div>
+                        <div class="step-title-name">认知启蒙阶段</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">📌 阶段特征：</div>
+                        <div class="step-body-text">停留在概念讨论，管理层缺乏整体方向，员工自发尝试单点免费工具。</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">🎯 突破重点：</div>
+                        <div class="step-body-text">完成高管AI认知统一，明确业务重构切入点。</div>
+                    </div>
+                </div>
+
+                <div class="step-stair stair-l2">
+                    <div class="step-header">
+                        <div class="step-lvl">L2</div>
+                        <div class="step-title-name">工具探索阶段</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">📌 阶段特征：</div>
+                        <div class="step-body-text">零散采购AI账号或外包单项服务，缺乏统一标准与知识沉淀，数据孤岛严重。</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">🎯 突破重点：</div>
+                        <div class="step-body-text">提炼通用SOP，开始构建企业私有知识库。</div>
+                    </div>
+                </div>
+
+                <div class="step-stair stair-l3">
+                    <div class="step-header">
+                        <div class="step-lvl">L3</div>
+                        <div class="step-title-name">场景融合阶段</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">📌 阶段特征：</div>
+                        <div class="step-body-text">知识库与数字人IP初步嵌入营销与客服场景，内容产能获得倍级释放。</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">🎯 突破重点：</div>
+                        <div class="step-body-text">布局GEO智能搜索，打通公域引流卡位。</div>
+                    </div>
+                </div>
+
+                <div class="step-stair stair-l4">
+                    <div class="step-header">
+                        <div class="step-lvl">L4</div>
+                        <div class="step-title-name">商业爆发阶段</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">📌 阶段特征：</div>
+                        <div class="step-body-text">形成“内容矩阵-GEO搜索-私域承接”自动化获客流水线，产生稳定线索增量。</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">🎯 突破重点：</div>
+                        <div class="step-body-text">优化全链条ROI，规模化复制获客模式。</div>
+                    </div>
+                </div>
+
+                <div class="step-stair stair-l5">
+                    <div class="step-header">
+                        <div class="step-lvl">L5</div>
+                        <div class="step-title-name">AI原生驱动阶段</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">📌 阶段特征：</div>
+                        <div class="step-body-text">AI深入嵌入决策、生产与运营底层，构建出高人效、自进化的数字资产闭环。</div>
+                    </div>
+                    <div class="step-block">
+                        <div class="step-tag-text">🎯 突破重点：</div>
+                        <div class="step-body-text">维持代际级竞争优势，持续复利增长。</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">09 / 21</span>
+        </div>
+    </div>
+
+    <!-- P10 战略引领力解决方案 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第四章 北锦星辰六力模型落地方案</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">① 战略引领力落地路径：高顶层设计的 AI 路线图</h2>
+            <p class="subtitle">对应北锦星辰专属产品：<b>企业 AI 战略与落地路线图咨询</b></p>
+            <div class="grid-2">
+                <div class="card active">
+                    <div class="card-title" style="color: var(--primary);">🎯 核心解决的企业痛点</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>方向迷茫：</b>决策层看好AI但不知从哪一个业务突破。</li>
+                        <li><b>部门割裂：</b>营销、IT、销售各自试错，资源极大浪费。</li>
+                        <li><b>指标缺失：</b>投入巨额成本却无法有效度量业务ROI。</li>
+                    </ul>
+                </div>
+                <div class="card active" style="background: var(--bg-light);">
+                    <div class="card-title" style="color: var(--primary);">⚡ 北锦星辰落地方案与交付物</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>企业 AI 增长诊断报告：</b>梳理业务增长堵点与切入点。</li>
+                        <li><b>顶层 AI 实施 Roadmap：</b>精准到月度的阶梯式推进计划。</li>
+                        <li><b>高管层共识训战营：</b>统一企业核心决策层思想与行动路线。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">10 / 21</span>
+        </div>
+    </div>
+
+    <!-- P11 品牌资产力解决方案 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第四章 北锦星辰六力模型落地方案</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">② 品牌资产力落地路径：打造可复利的独家数字资产</h2>
+            <p class="subtitle">对应北锦星辰专属产品：<b>私有 AI 知识库与数字人 IP 打造</b></p>
+            <div class="grid-2">
+                <div class="card active">
+                    <div class="card-title" style="color: var(--primary);">🎯 核心解决的企业痛点</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>知识流失：</b>核心业务 Know-How 随人员离职而流失。</li>
+                        <li><b>创始人捆绑：</b>IP 打造耗费创始人大量拍摄与精力。</li>
+                        <li><b>形象不统一：</b>对外服务与宣传标准不一，影响品牌信任。</li>
+                    </ul>
+                </div>
+                <div class="card active" style="background: var(--bg-light);">
+                    <div class="card-title" style="color: var(--primary);">⚡ 北锦星辰落地方案与交付物</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>企业私有 AI 知识库搭建：</b>加密保障知识产权与资产沉淀。</li>
+                        <li><b>1:1 创始人高精数字分身：</b>声音+形象深度克隆，秒级生成。</li>
+                        <li><b>专属垂直场景数字员工：</b>配置智能播报、客服与销售帮手。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">11 / 21</span>
+        </div>
+    </div>
+
+    <!-- P12 内容生产力解决方案 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第四章 北锦星辰六力模型落地方案</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">③ 内容生产力落地路径：工业化爆款内容矩阵流水线</h2>
+            <p class="subtitle">对应北锦星辰专属产品：<b>AI 批量内容生产与矩阵孵化体系</b></p>
+            <div class="grid-2">
+                <div class="card active">
+                    <div class="card-title" style="color: var(--primary);">🎯 核心解决的企业痛点</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>产能严重不足：</b>传统人工团队月产仅数条，难以覆盖全网。</li>
+                        <li><b>制作成本高昂：</b>拍摄、剪辑、编导团队综合维护成本高。</li>
+                        <li><b>质量无法标准化：</b>依赖人工状态，缺乏稳定的文案与视觉质量。</li>
+                    </ul>
+                </div>
+                <div class="card active" style="background: var(--bg-light);">
+                    <div class="card-title" style="color: var(--primary);">⚡ 北锦星辰落地方案与交付物</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>AI 工业化短视频生产线：</b>批量生成高转化文案与合成视频。</li>
+                        <li><b>全网高权重矩阵搭建：</b>覆盖抖音、视频号、小红书等核心阵地。</li>
+                        <li><b>合约化定速定量交付：</b>按合同保质保量定时输出矩阵内容。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">12 / 21</span>
+        </div>
+    </div>
+
+    <!-- P13 AI搜索可见力解决方案 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第四章 北锦星辰六力模型落地方案</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">④ AI 搜索可见力落地路径：抢占 AI 智能推荐第一顺位</h2>
+            <p class="subtitle">对应北锦星辰专属产品：<b>GEO 生成式搜索引擎推荐优化</b></p>
+            <div class="grid-2">
+                <div class="card active">
+                    <div class="card-title" style="color: var(--primary);">🎯 核心解决的企业痛点</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>搜索入口截流：</b>客户改用 DeepSeek/豆包等AI选品牌，旧SEO失效。</li>
+                        <li><b>品牌无推荐：</b>AI 引擎回答行业咨询时，完全未提及企业名称。</li>
+                        <li><b>竞品抢先占位：</b>行业头部品牌已提前进行 AI 语料库埋点。</li>
+                    </ul>
+                </div>
+                <div class="card active" style="background: var(--bg-light);">
+                    <div class="card-title" style="color: var(--primary);">⚡ 北锦星辰落地方案与交付物</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>GEO 品牌与行业词埋点：</b>让 AI 在推荐方案时优先提及品牌。</li>
+                        <li><b>主流 AI 平台全覆盖：</b>拦截 DeepSeek、豆包、元宝、Kimi 流量。</li>
+                        <li><b>长期推荐顺位保位：</b>确保品牌在生成式搜索中处于高权威度。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">13 / 21</span>
+        </div>
+    </div>
+
+    <!-- P14 增长运营力解决方案 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第四章 北锦星辰六力模型落地方案</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">⑤ 增长运营力落地路径：自动化获客与长效转化飞轮</h2>
+            <p class="subtitle">对应北锦星辰专属产品：<b>AI 智能运营与私域转化系统</b></p>
+            <div class="grid-2">
+                <div class="card active">
+                    <div class="card-title" style="color: var(--primary);">🎯 核心解决的企业痛点</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>线索流失严重：</b>非工作时间咨询无法及时响应，流失率超 60%。</li>
+                        <li><b>私域培育成本高：</b>人工客服跟进不及时，缺乏个性化培育。</li>
+                        <li><b>有曝光无成交：</b>公域内容引流与私域销售断层。</li>
+                    </ul>
+                </div>
+                <div class="card active" style="background: var(--bg-light);">
+                    <div class="card-title" style="color: var(--primary);">⚡ 北锦星辰落地方案与交付物</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>7×24h 自动化线索承接：</b>秒级响应多渠道客户咨询。</li>
+                        <li><b>私域智能培育工作流：</b>针对不同画像客户进行AI个性化跟进。</li>
+                        <li><b>全链路数据复盘与归因：</b>持续调优投放与内容转化率。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">14 / 21</span>
+        </div>
+    </div>
+
+    <!-- P15 组织进化力解决方案 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第四章 北锦星辰六力模型落地方案</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">⑥ 组织进化力落地路径：人效翻倍的现代化自驱团队</h2>
+            <p class="subtitle">对应北锦星辰专属产品：<b>AI 工作流重构与全员实战训战</b></p>
+            <div class="grid-2">
+                <div class="card active">
+                    <div class="card-title" style="color: var(--primary);">🎯 核心解决的企业痛点</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>员工抵触新技术：</b>习惯旧工作流程，缺乏Prompt（提示词）能力。</li>
+                        <li><b>缺少标准化流程：</b>个人经验无法复制给整个团队。</li>
+                        <li><b>组织臃肿低效：</b>人员规模增长但人均产出持续下滑。</li>
+                    </ul>
+                </div>
+                <div class="card active" style="background: var(--bg-light);">
+                    <div class="card-title" style="color: var(--primary);">⚡ 北锦星辰落地方案与交付物</div>
+                    <ul class="list-items" style="margin-top: 6px;">
+                        <li><b>岗位级 AI SOP 编写：</b>重新定义营销、客服、销售岗位流程。</li>
+                        <li><b>企业专属实战训战：</b>带真实业务场景训练员工熟练驾驭 AI。</li>
+                        <li><b>打造高人效组织文化：</b>建立 AI 时代的自驱进化型团队。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">15 / 21</span>
+        </div>
+    </div>
+
+    <!-- P16 最终商业价值 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第五章 交付价值与投资框架</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">企业最终获得的六大核心价值增量</h2>
+            <p class="subtitle">北锦星辰不卖单点软件产品，我们为您构建可持续、可复利的六大增量体系：</p>
+            <div class="grid-3" style="gap:16px;">
+                <div class="card active" style="border-top: 4px solid var(--primary);"><b style="color:var(--primary); font-size:15px;">① 顶层战略路线</b><p style="font-size:12px; color:var(--gray-dark); margin-top:6px;">清晰落地规划，告别盲目试错</p></div>
+                <div class="card active" style="border-top: 4px solid var(--primary);"><b style="color:var(--primary); font-size:15px;">② 私有数字资产</b><p style="font-size:12px; color:var(--gray-dark); margin-top:6px;">企业级知识库与数字人IP沉淀</p></div>
+                <div class="card active" style="border-top: 4px solid var(--primary);"><b style="color:var(--primary); font-size:15px;">③ 全网内容矩阵</b><p style="font-size:12px; color:var(--gray-dark); margin-top:6px;">工业化高频高质短视频输出</p></div>
+                <div class="card active" style="border-top: 4px solid var(--primary);"><b style="color:var(--primary); font-size:15px;">④ GEO 搜索优势</b><p style="font-size:12px; color:var(--gray-dark); margin-top:6px;">主流 AI 推荐引擎优先推荐权</p></div>
+                <div class="card active" style="border-top: 4px solid var(--primary);"><b style="color:var(--primary); font-size:15px;">⑤ 自动获客闭环</b><p style="font-size:12px; color:var(--gray-dark); margin-top:6px;">从公域曝光到私域转化的全流程</p></div>
+                <div class="card active" style="border-top: 4px solid var(--primary);"><b style="color:var(--primary); font-size:15px;">⑥ 高人效组织</b><p style="font-size:12px; color:var(--gray-dark); margin-top:6px;">全员掌握 AI 工具与高产出协同</p></div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">16 / 21</span>
+        </div>
+    </div>
+
+    <!-- P17 投资框架 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第五章 交付价值与投资框架</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">企业 AI 增长战略投资框架</h2>
+            <p class="subtitle">匹配企业不同演进路线与经营周期的梯度投资与实施配置：</p>
+            <div class="invest-grid">
+
+                <div class="invest-card stage-1">
+                    <div class="invest-header">
+                        <span class="invest-num">01</span>
+                        <span class="invest-title">基础建设阶段</span>
+                        <span class="invest-sub">Foundation Stage</span>
+                    </div>
+                    <div class="invest-content">
+                        <div>
+                            <div class="invest-sec-title">🎯 适用与定位</div>
+                            <div class="invest-desc">适配品牌筑基期、AI转型试点企业，建立AI增长基础资产与布局。</div>
+                        </div>
+                        <div>
+                            <div class="invest-sec-title">⚡ 核心交付与举措</div>
+                            <ul class="invest-list">
+                                <li><b>数字资产：</b>1个核心IP全网矩阵，1套数字人+声音克隆</li>
+                                <li><b>内容产出：</b>每周1条/年50条短视频（品牌/产品）</li>
+                                <li><b>运营服务：</b>基础投放，月度报告与季度复盘</li>
+                            </ul>
+                        </div>
+                        <div class="invest-price-pill">
+                            参考投入：¥39,800 / 年
+                        </div>
+                    </div>
+                </div>
+
+                <div class="invest-card stage-2">
+                    <div class="invest-header">
+                        <span class="invest-num">02</span>
+                        <span class="invest-title">增长加速阶段</span>
+                        <span class="invest-sub">Acceleration Stage</span>
+                    </div>
+                    <div class="invest-content">
+                        <div>
+                            <div class="invest-sec-title">🎯 适用与定位</div>
+                            <div class="invest-desc">适配成长期骨干企业，建立持续传播体系，扩大曝光并提升获客。</div>
+                        </div>
+                        <div>
+                            <div class="invest-sec-title">⚡ 核心交付与举措</div>
+                            <ul class="invest-list">
+                                <li><b>数字资产：</b>优化1个核心IP矩阵，升级数字人及声音资产</li>
+                                <li><b>内容产出：</b>每周2条/年100条短视频（痛点/场景）</li>
+                                <li><b>运营服务：</b>精准投放，双周数据分析与每月策略调优</li>
+                            </ul>
+                        </div>
+                        <div class="invest-price-pill">
+                            参考投入：¥68,000 / 年
+                        </div>
+                    </div>
+                </div>
+
+                <div class="invest-card stage-3">
+                    <div class="invest-header">
+                        <span class="invest-num">03</span>
+                        <span class="invest-title">行业领先阶段</span>
+                        <span class="invest-sub">Leadership Stage</span>
+                    </div>
+                    <div class="invest-content">
+                        <div>
+                            <div class="invest-sec-title">🎯 适用与定位</div>
+                            <div class="invest-desc">适配强获客需求与头部潜质企业，构建完整体系，实现高效转化。</div>
+                        </div>
+                        <div>
+                            <div class="invest-sec-title">⚡ 核心交付与举措</div>
+                            <ul class="invest-list">
+                                <li><b>数字资产：</b>2个核心IP矩阵联动，2套数字人+多场景声音库</li>
+                                <li><b>内容产出：</b>每日1条/年360条（故事/案例/洞察）</li>
+                                <li><b>运营服务：</b>强化投放ROI，每周线索复盘与策略迭代</li>
+                            </ul>
+                        </div>
+                        <div class="invest-price-pill">
+                            参考投入：¥188,000 / 年
+                        </div>
+                    </div>
+                </div>
+
+                <div class="invest-card stage-4">
+                    <div class="invest-header">
+                        <span class="invest-num">04</span>
+                        <span class="invest-title">原生经营阶段</span>
+                        <span class="invest-sub">AI Native Stage</span>
+                    </div>
+                    <div class="invest-content">
+                        <div>
+                            <div class="invest-sec-title">🎯 适用与定位</div>
+                            <div class="invest-desc">适配集团型、多品牌企业，建立集团级AI增长中心与多品牌协同。</div>
+                        </div>
+                        <div>
+                            <div class="invest-sec-title">⚡ 核心交付与举措</div>
+                            <ul class="invest-list">
+                                <li><b>数字资产：</b>3个集团级IP，统一账号库，4套+数字人资产</li>
+                                <li><b>内容产出：</b>标准化无限量交付体系，按需深度定制</li>
+                                <li><b>运营服务：</b>集团统一管控，实时看板，24h专家团队响应</li>
+                            </ul>
+                        </div>
+                        <div class="invest-price-pill">
+                            参考投入：¥298,000 / 年
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">17 / 21</span>
+        </div>
+    </div>
+
+    <!-- P18 GEO专项价格明细 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第五章 交付价值与投资框架</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">GEO 专项价格体系</h2>
+            <div class="grid-2">
+                <div class="card active">
+                    <div class="card-title" style="color: var(--primary);">GEO 智能搜索优化标准定价</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                        <div class="geo-card">
+                            <span style="font-weight: 700; color: var(--dark);">品牌词优化</span>
+                            <span style="font-weight: 800; color: var(--primary);">4,000 元 / 年</span>
+                        </div>
+                        <div class="geo-card">
+                            <span style="font-weight: 700; color: var(--dark);">地域行业词优化</span>
+                            <span style="font-weight: 800; color: var(--primary);">6,000 元 / 年</span>
+                        </div>
+                        <div class="geo-card">
+                            <span style="font-weight: 700; color: var(--dark);">全国行业词优化</span>
+                            <span style="font-weight: 800; color: var(--primary);">8,000 元 / 年</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card active" style="background: var(--primary-light); border-color: var(--primary);">
+                    <div class="card-title" style="color: var(--primary);">平台扩展与保位规则</div>
+                    <ul class="list-items" style="font-size:13px; margin-top: 10px;">
+                        <li><b>增加平台计费：</b>每增加一个搜索平台 +50% 费用</li>
+                        <li><b>平台保第一定位：</b>费用按照原标准价格 × 2 执行</li>
+                        <li><b>全套产品签约：</b>按投资框架套餐选择享有专属配置支持</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="quote-box" style="margin-top: 8px; font-weight: normal; font-size: 12px; color: var(--gray-dark);">
+                * 视频交付条数、技术标准与服务周期，严格采用标准合同执行，不进行二次修改。
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">18 / 21</span>
+        </div>
+    </div>
+
+    <!-- P19 优势理由 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第六章 为什么选择北锦星辰？</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">为什么选择北锦星辰？</h2>
+            <div class="grid-2">
+                <div class="card active">
+                    <div class="card-title"><span class="card-icon">1</span> 自研落地方法论</div>
+                    <p style="font-size:13px; color:var(--gray-dark); line-height:1.6; margin-top: 6px;">
+                        拥有独家原创的 JBF 框架、六力模型与四阶段投资评估框架，确保战略清晰、投资精准。
+                    </p>
+                </div>
+                <div class="card active">
+                    <div class="card-title"><span class="card-icon">2</span> 标准化交付基地</div>
+                    <p style="font-size:13px; color:var(--gray-dark); line-height:1.6; margin-top: 6px;">
+                        依托<b>辽宁锦州专业交付基地</b>，实现工业化、低成本的高质量内容与资产交付。
+                    </p>
+                </div>
+                <div class="card active">
+                    <div class="card-title"><span class="card-icon">3</span> 长期深度陪跑</div>
+                    <p style="font-size:13px; color:var(--gray-dark); line-height:1.6; margin-top: 6px;">
+                        拒绝一卖了之，以“战略咨询+资产建设+运营陪跑”模式与企业深度绑定共赢。
+                    </p>
+                </div>
+                <div class="card active">
+                    <div class="card-title"><span class="card-icon">4</span> 跨界实战团队</div>
+                    <p style="font-size:13px; color:var(--gray-dark); line-height:1.6; margin-top: 6px;">
+                        融合顶层战略咨询、AI技术落地、内容增长与数字资产运营的全栈跨界能力。
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">19 / 21</span>
+        </div>
+    </div>
+
+    <!-- P20 合作流程 -->
+    <div class="slide">
+        <div class="slide-header">
+            <div class="brand-logo">北锦星辰</div>
+            <div class="header-right">
+                <div class="chapter-tag">第七章 合作方式</div>
+            </div>
+        </div>
+        <div class="slide-body">
+            <h2 class="section-title">合作四步法流程</h2>
+            <div class="grid-4" style="margin-top: 8px;">
+                <div class="card active" style="text-align:center;">
+                    <div class="card-icon" style="margin: 0 auto 10px auto;">1</div>
+                    <div class="card-title" style="justify-content:center;">企业 AI 诊断</div>
+                    <p style="font-size: 12px; color: var(--gray-dark); line-height: 1.5;">摸底现状，评估成熟度与增长瓶颈。</p>
+                </div>
+                <div class="card active" style="text-align:center;">
+                    <div class="card-icon" style="margin: 0 auto 10px auto;">2</div>
+                    <div class="card-title" style="justify-content:center;">定制战略方案</div>
+                    <p style="font-size: 12px; color: var(--gray-dark); line-height: 1.5;">匹配六力模型与阶段投资预算。</p>
+                </div>
+                <div class="card active" style="text-align:center;">
+                    <div class="card-icon" style="margin: 0 auto 10px auto;">3</div>
+                    <div class="card-title" style="justify-content:center;">项目交付实施</div>
+                    <p style="font-size: 12px; color: var(--gray-dark); line-height: 1.5;">依托基地搭建知识库、GEO与矩阵。</p>
+                </div>
+                <div class="card active" style="text-align:center;">
+                    <div class="card-icon" style="margin: 0 auto 10px auto;">4</div>
+                    <div class="card-title" style="justify-content:center;">持续陪跑迭代</div>
+                    <p style="font-size: 12px; color: var(--gray-dark); line-height: 1.5;">数据跟踪复盘，长效优化增量闭环。</p>
+                </div>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>AI引擎重构企业增长</span>
+            <span class="slide-number">20 / 21</span>
+        </div>
+    </div>
+
+    <!-- P21 独立结尾页 -->
+    <div class="slide ending-slide">
+        <div class="slide-header" style="border:none;">
+            <div class="brand-logo">北锦星辰</div>
+        </div>
+        <div class="slide-body" style="justify-content: center; text-align: center; align-items: center;">
+            <div style="max-width: 860px; margin: 0 auto;">
+                <p style="font-size: 20px; color: var(--gray-dark); font-weight: 700; margin-bottom: 24px; letter-spacing: 0.5px;">
+                    AI 不是企业的终点，而是企业增长的新起点。
+                </p>
+                <div style="height: 3px; width: 80px; background: var(--primary); margin: 0 auto 28px auto; border-radius: 2px;"></div>
+                <h1 style="font-size: 38px; color: var(--primary); font-weight: 900; line-height: 1.3; letter-spacing: -0.5px;">
+                    北锦星辰｜开启 AI 原生增长战略进化之路
+                </h1>
+            </div>
+        </div>
+        <div class="slide-footer">
+            <span>企业AI原生增长战略框架</span>
+            <span class="slide-number">21 / 21</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.slide');
+    const progressBar = document.getElementById('progressBar');
+
+    function updateProgressBar() {
+        const progress = ((currentSlide + 1) / slides.length) * 100;
+        progressBar.style.width = progress + '%';
+    }
+
+    function showSlide(index) {
+        slides.forEach((slide, i) => {
+            slide.classList.remove('active');
+            if (i === index) slide.classList.add('active');
+        });
+        updateProgressBar();
+    }
+
+    function nextSlide() {
+        if (currentSlide < slides.length - 1) {
+            currentSlide++;
+            showSlide(currentSlide);
+        }
+    }
+
+    function prevSlide() {
+        if (currentSlide > 0) {
+            currentSlide--;
+            showSlide(currentSlide);
+        }
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+        if (e.key === 'ArrowLeft') prevSlide();
+    });
+
+    updateProgressBar();
+</script>
+</body>
+</html>
